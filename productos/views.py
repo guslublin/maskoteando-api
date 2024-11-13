@@ -1,12 +1,13 @@
 from rest_framework import status, viewsets
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny  # Importa AllowAny
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Producto, Mascota, Cliente, Venta
-from .serializers import ProductoSerializer, MascotaSerializer, ClienteSerializer, VentaSerializer
-from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
+import pandas as pd
+from .models import Producto, Mascota, Cliente, Consulta
+from .serializers import ProductoSerializer, MascotaSerializer, ClienteSerializer, ConsultaSerializer
 
 # Registro de usuarios
 @api_view(['POST'])
@@ -44,29 +45,37 @@ class ClienteViewSet(viewsets.ModelViewSet):
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
 
-class VentaViewSet(viewsets.ModelViewSet):
-    queryset = Venta.objects.all()
-    serializer_class = VentaSerializer
+# Vista de consultas
+class ConsultaViewSet(viewsets.ModelViewSet):
+    queryset = Consulta.objects.all()
+    serializer_class = ConsultaSerializer
+    permission_classes = [IsAuthenticated]
 
-@api_view(['POST'])
-def crear_venta(request):
-    cliente_id = request.data.get('cliente')
-    productos_ids = request.data.get('productos', [])
-    mascotas_ids = request.data.get('mascotas', [])
-
-    try:
-        cliente = Cliente.objects.get(id=cliente_id)
-        productos = Producto.objects.filter(id__in=productos_ids)
-        mascotas = Mascota.objects.filter(id__in=mascotas_ids)
-    except (Cliente.DoesNotExist, Producto.DoesNotExist, Mascota.DoesNotExist) as e:
-        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Calcular total
-    total = sum([producto.precio_venta for producto in productos]) + sum([mascota.precio for mascota in mascotas])
-
-    venta = Venta.objects.create(cliente=cliente, total=total)
-    venta.productos.set(productos)
-    venta.mascotas.set(mascotas)
-    venta.save()
-
-    return Response(VentaSerializer(venta).data, status=status.HTTP_201_CREATED)
+    @action(detail=False, methods=['get'], url_path='exportar-excel')
+    def exportar_excel(self, request):
+        consultas = Consulta.objects.all()
+        data = [
+            {
+                'ID': consulta.id,
+                'Fecha': consulta.fecha_consulta,
+                'Hora': consulta.hora,
+                'Mascota': consulta.mascota.nombre,
+                'Cliente': consulta.cliente.nombre,
+                'Motivo': consulta.motivo,
+                'Observación': consulta.observacion,
+            }
+            for consulta in consultas
+        ]
+        
+        # Crear DataFrame de pandas
+        df = pd.DataFrame(data)
+        
+        # Crear respuesta con archivo Excel
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=consultas.xlsx'
+        
+        # Escribir el DataFrame al archivo Excel en la respuesta
+        with pd.ExcelWriter(response, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Consultas')
+        
+        return response

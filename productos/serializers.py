@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Producto, Mascota, Cliente, Venta
+from .models import Producto, Mascota, Cliente, Consulta
 
 class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,11 +18,10 @@ class MascotaSerializer(serializers.ModelSerializer):
         model = Mascota
         fields = ['id', 'nombre', 'fecha_nacimiento', 'raza', 'procedencia', 'cliente']
 
-class VentaSerializer(serializers.ModelSerializer):
-    cliente = ClienteSerializer()
-    productos = ProductoSerializer(many=True)
-    mascotas = MascotaSerializer(many=True)
+class ConsultaSerializer(serializers.ModelSerializer):
+    mascota_nombre = serializers.CharField(source='mascota.nombre', read_only=True)
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
 
     class Meta:
-        model = Venta
-        fields = ['id', 'cliente', 'productos', 'mascotas', 'total', 'fecha']
+        model = Consulta
+        fields = ['id', 'fecha_consulta', 'hora', 'motivo', 'observacion', 'mascota', 'cliente', 'mascota_nombre', 'cliente_nombre']

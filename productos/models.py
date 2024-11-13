@@ -32,12 +32,13 @@ class Mascota(models.Model):
     def __str__(self):
         return self.nombre
     
-class Venta(models.Model):
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
-    productos = models.ManyToManyField(Producto, blank=True)  # Relación con productos
-    mascotas = models.ManyToManyField(Mascota, blank=True)  # Relación con mascotas
-    total = models.DecimalField(max_digits=10, decimal_places=2)
-    fecha = models.DateTimeField(auto_now_add=True)
+class Consulta(models.Model):
+    fecha_consulta = models.DateField()
+    hora = models.TimeField()
+    motivo = models.CharField(max_length=255)
+    observacion = models.TextField(blank=True, null=True)
+    mascota = models.ForeignKey('Mascota', on_delete=models.CASCADE)
+    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"Venta {self.id} - {self.cliente.nombre}"
+        return f"Consulta {self.id} - {self.fecha_consulta}"
